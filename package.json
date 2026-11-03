@@ -1,0 +1,35 @@
+{
+  "name": "@vortexify/react",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vortexifyai/react-sdk.git"
+  },
+  "type": "module",
+  "files": [
+    "dist",
+    "docs"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.0",
+    "jsdom": "^26.1.0"
+  }
+}
