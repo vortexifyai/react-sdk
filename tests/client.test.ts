@@ -8,6 +8,15 @@ const auth = { token: "token", orgId: "org" };
 afterEach(() => vi.unstubAllGlobals());
 
 describe("service requests", () => {
+  it.each([
+    ['{"message":"API runtime is not ready; build it through the CLI"}', "API runtime is not ready; build it through the CLI"],
+    ["<html>Bad gateway</html>", "HTTP 400"],
+    ['{"message":{"nested":"invalid"}}', "HTTP 400"],
+  ])("preserves server errors with a non-JSON fallback", async (body, message) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body, {status: 400})));
+    await expect(new VortexifyClient(config, () => auth).runApi("orders")).rejects.toMatchObject({message, status:400});
+  });
+
   it("calls APIs by name without a resource lookup and unwraps typed JSON results", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response('{"success":true,"job_id":"job","result":{"answer":42}}'));
     vi.stubGlobal("fetch", fetchMock);
@@ -92,7 +101,7 @@ describe("service requests", () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).function_name).toBe('api');
     expect(fetchMock.mock.calls[1][0].pathname).toMatch(/get_job_results$/);
     fetchMock.mockResolvedValue(new Response('{"message":"Job does not belong to this transform"}', { status: 403 }));
-    await expect(client.getTransformJob("api", "job")).rejects.toThrow("HTTP 403");
+    await expect(client.getTransformJob("api", "job")).rejects.toThrow("Job does not belong to this transform");
     const controller = new AbortController(); controller.abort();
     await expect(client.pollTransform("api", "job", { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
   });

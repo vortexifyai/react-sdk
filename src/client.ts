@@ -85,12 +85,18 @@ export class VortexifyClient {
     return { url, signal, headers, auth, useDevProxy };
   }
 
-  private checkResponse(response: Response, useDevProxy: boolean) {
+  private async checkResponse(response: Response, useDevProxy: boolean) {
     if (response.status === 401 && !useDevProxy) this.refreshAuth?.();
     if (response.status === 401 && useDevProxy) {
       throw new VortexifyError("Development proxy authentication failed. Run vortexify login and restart vortexify dev.", 401);
     }
-    if (!response.ok) throw new VortexifyError(`HTTP ${response.status}`, response.status);
+    if (!response.ok) {
+      let details: unknown;
+      try { details = await response.json(); } catch { /* Proxies may return non-JSON errors. */ }
+      const value = details && typeof details === "object" ? details as Record<string, unknown> : undefined;
+      const message = typeof value?.message === "string" && value.message.trim() ? value.message : `HTTP ${response.status}`;
+      throw new VortexifyError(message, response.status, details);
+    }
   }
 
   private context() {
@@ -113,7 +119,7 @@ export class VortexifyClient {
       body = JSON.stringify(values);
     }
     const response = await fetch(url, { method: "POST", body, signal, headers, credentials: "omit" });
-    this.checkResponse(response, useDevProxy);
+    await this.checkResponse(response, useDevProxy);
     const result = await response.json();
     if (result?.success === false) {
       throw new VortexifyError(result.message ?? "Vortexify request failed.", response.status, result);
@@ -131,8 +137,11 @@ export class VortexifyClient {
       headers.Accept = "text/event-stream";
       const body = JSON.stringify({ ...payload, agent_name: this.requireResourceName(agentName), ...this.context(), ...(this.config.mode === "preview" ? { preview: true } : {}) });
       const response = await fetch(url, { method: "POST", body, signal, headers, credentials: "omit" });
-      try { this.checkResponse(response, useDevProxy); }
-      catch (error) { await response.body?.cancel(); throw error; }
+      try { await this.checkResponse(response, useDevProxy); }
+      catch (error) {
+        if (!response.bodyUsed) await response.body?.cancel().catch(() => {});
+        throw error;
+      }
       return { response, signal };
     }, agentName, (conversationId, runId, callId, result, signal) =>
       this.respondToToolCall(agentName, conversationId, runId, callId, result, { signal }),
@@ -292,8 +301,11 @@ export class VortexifyClient {
           const response = await fetch(prepared.url, { method: "POST", credentials: "omit", signal: prepared.signal,
             headers: { ...prepared.headers, "Content-Type": "application/json", Accept: "text/event-stream" },
             body: JSON.stringify({ ...this.context(), job_id: jobId, last_event_id: after }) });
-          try { this.checkResponse(response, prepared.useDevProxy); }
-          catch (error) { await response.body?.cancel(); throw error; }
+          try { await this.checkResponse(response, prepared.useDevProxy); }
+          catch (error) {
+            if (!response.bodyUsed) await response.body?.cancel().catch(() => {});
+            throw error;
+          }
           for await (const event of readJobEvents(response, prepared.signal)) {
             if (event.id) after = event.id;
             if (event.type === "error") throw new VortexifyError("Job stream interrupted.");

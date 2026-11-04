@@ -297,6 +297,10 @@ Use these client methods when building your own conversation UI or stream handli
 <!-- sdk-release-history -->
 ## Changelog
 
+### v0.1.1
+
+- Preserve API error messages and details, validate asynchronous responses, and retain original errors during cleanup.
+
 ### v0.1.0
 
 - Initial release.
