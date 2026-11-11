@@ -8,6 +8,25 @@ const auth = { token: "token", orgId: "org" };
 afterEach(() => vi.unstubAllGlobals());
 
 describe("service requests", () => {
+  it("preserves customer exceptions from failed Lambda invocations", async () => {
+    const result = { success: false, job_id: "job", result: { success: false,
+      error: { type: "ValueError", message: "Purchase order is already received" } } };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(result))));
+    await expect(new VortexifyClient(config, () => auth).runApi("receive_order"))
+      .rejects.toMatchObject({ message: "Purchase order is already received", response: result });
+  });
+  it.each([
+    [{ development: true, mode: "run" as const }, true],
+    [{ mode: "preview" as const }, true],
+    [{ mode: "run" as const }, false],
+  ])("selects the database environment for API calls: %j", async (environment, preview) => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"result":true}'));
+    vi.stubGlobal("fetch", fetchMock);
+    await new VortexifyClient({ ...config, ...environment }, () => auth).runApi("orders");
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.preview === true).toBe(preview);
+  });
+
   it.each([
     ['{"message":"API runtime is not ready; build it through the CLI"}', "API runtime is not ready; build it through the CLI"],
     ["<html>Bad gateway</html>", "HTTP 400"],
@@ -41,7 +60,7 @@ describe("service requests", () => {
     } };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(envelope))));
     await expect(new VortexifyClient(config, () => auth).runApi("sales")).rejects.toMatchObject({
-      message: "API execution failed.", response: envelope,
+      message: "Runtime execution failed", response: envelope,
     });
   });
   it("routes local preview executions separately from deployed executions", async () => {

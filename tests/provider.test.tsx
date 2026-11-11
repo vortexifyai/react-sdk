@@ -26,7 +26,7 @@ it("uses the local proxy in development without browser credentials", async () =
   const container = document.createElement("div");
   const root = createRoot(container);
   const fetchMock = operationFetch().mockImplementation(async () => new Response('{"job_id":"job"}'));
-  await act(async () => root.render(<VortexifyProvider config={{ orgId: "org", projectId: "project", baseUrl: "", development: true }}><Consumer /></VortexifyProvider>));
+  await act(async () => root.render(<VortexifyProvider config={{ orgId: "org", projectId: "project", baseUrl: "", development: true, mode: "run" }}><Consumer /></VortexifyProvider>));
   expect(container.textContent).toBe("true");
   expect(Object.keys(context!).sort()).toEqual(["agentManager", "client", "logout", "ready"]);
   await context!.client.startTransform("refresh", { enabled: true });
@@ -34,6 +34,7 @@ it("uses the local proxy in development without browser credentials", async () =
   expect(String(url)).toBe(window.location.origin + "/__vortexify/api/v2/artifacts/functions/start_transform_function");
   expect(request?.headers).toEqual({ "Content-Type": "application/json" });
   expect(request?.credentials).toBe("omit");
+  expect(JSON.parse(String(request?.body)).preview).toBe(true);
   await act(async () => root.render(<VortexifyProvider config={{ ...config, development: false }}><Consumer /></VortexifyProvider>));
   expect(container.textContent).toContain("Open this application through its published URL.");
   await act(async () => root.unmount());
@@ -59,7 +60,7 @@ it("keeps custom dev prefixes, typed inputs and non-secret org context", async (
   await act(async () => root.render(<VortexifyProvider config={{ ...config, development: true, devProxyPath: "/local/proxy", orgId: "org" }}><Consumer /></VortexifyProvider>));
   await context!.client.runApi("sales", { enabled: false, count: 0 });
   expect(String(fetchMock.mock.calls[0][0])).toBe(window.location.origin + "/local/proxy/api/v2/projects/project/apis/sales");
-  expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string)).toEqual({ inputs: { enabled: false, count: 0 }, function_name: "sales", project_id: "project", org_id: "org" });
+  expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string)).toEqual({ inputs: { enabled: false, count: 0 }, function_name: "sales", project_id: "project", org_id: "org", preview: true });
   await act(async () => root.unmount());
 });
 

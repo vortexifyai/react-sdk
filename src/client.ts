@@ -34,6 +34,17 @@ export interface AgentChart {
   row_count: number;
 }
 
+function failureMessage(value: Record<string, unknown>, fallback: string): string {
+  if (typeof value.message === "string" && value.message.trim()) return value.message;
+  const nested = value.result && typeof value.result === "object" ? value.result as Record<string, unknown> : undefined;
+  const error = nested?.error ?? value.error;
+  if (typeof error === "string" && error.trim()) return error;
+  if (error && typeof error === "object") {
+    const message = (error as Record<string, unknown>).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return fallback;
+}
 
 export class VortexifyClient {
   readonly endpoints: Endpoints;
@@ -44,6 +55,7 @@ export class VortexifyClient {
     private transport: "authenticated" | "dev-proxy" = "authenticated",
     private getAgentView?: () => AgentView | null,
   ) {
+    if (config.development) this.config = { ...config, mode: "preview" };
     this.endpoints = { ...DEFAULT_ENDPOINTS, ...config.endpoints };
   }
 
@@ -122,7 +134,7 @@ export class VortexifyClient {
     await this.checkResponse(response, useDevProxy);
     const result = await response.json();
     if (result?.success === false) {
-      throw new VortexifyError(result.message ?? "Vortexify request failed.", response.status, result);
+      throw new VortexifyError(failureMessage(result, "Vortexify request failed."), response.status, result);
     }
     return result as T;
   }
@@ -218,7 +230,7 @@ export class VortexifyClient {
       const runtime = output as Record<string, unknown>;
       if (runtime.contract_version === 1 && runtime.operation === "api" && typeof runtime.job_id === "string") {
         if (runtime.success === false || runtime.status === "failed" || runtime.status === "error") {
-          throw new VortexifyError("API execution failed.", undefined, result);
+          throw new VortexifyError(failureMessage(runtime, "API execution failed."), undefined, result);
         }
         if (!("result" in runtime)) throw new VortexifyError("API execution returned no result.", undefined, result);
         return runtime.result as T;
