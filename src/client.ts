@@ -224,6 +224,13 @@ export class VortexifyClient {
   async runApi<T = unknown>(apiName: string, inputs: Inputs = {}, options?: RequestOptions): Promise<T> {
     if (!apiName.trim()) throw new VortexifyError("A resource name is required.");
     const result = await this.request<Record<string, unknown>>(this.endpoints.runApi, apiName, { function_name: apiName, inputs, ...(this.config.mode === "preview" ? { preview: true } : {}) }, options);
+    if (typeof result?.job_id === "string" && result.type === "function-run") {
+      if (result.status !== "success" || result.completed !== true) {
+        throw new VortexifyError(failureMessage(result, "API execution did not complete successfully."), undefined, result);
+      }
+      if (!("response" in result)) throw new VortexifyError("API execution returned no response.", undefined, result);
+      return result.response as T;
+    }
     // The server keeps invocation metadata; the runtime wraps the user's return value.
     const output = (result && "job_id" in result && "result" in result) ? result.result : result;
     if (output && typeof output === "object") {
