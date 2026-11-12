@@ -176,3 +176,23 @@ it("rejects proxy transport in production", async () => {
   const client = new VortexifyClient(config, () => null, undefined, "dev-proxy");
   await expect(client.runApi("sales")).rejects.toThrow("requires development mode");
 });
+
+it.each([null, false, 0, "", [1, 2], { result: { result: 5 }, success: false }])(
+  "returns the public response unchanged: %j", async response => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      job_id: "job", type: "function-run", status: "success", completed: true, response,
+    }))));
+    expect(await new VortexifyClient(config, () => auth).runApi("orders")).toEqual(response);
+  },
+);
+
+it.each([
+  { status: "failed", completed: true, error: { message: "Invalid order" } },
+  { status: "running", completed: false },
+  { status: "success", completed: true },
+])("rejects unsuccessful or missing public API responses: %j", async details => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+    job_id: "job", type: "function-run", ...details,
+  }))));
+  await expect(new VortexifyClient(config, () => auth).runApi("orders")).rejects.toThrow();
+});
