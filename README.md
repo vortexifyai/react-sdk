@@ -46,7 +46,7 @@ The client is shared, but **each `useVortexify()` call has its own agent manager
 
 ## Call a project API
 
-Use the API's name as defined in your Vortexify project. The SDK returns the API's result directly. The server exposes it at `response` alongside job metadata; `runApi` returns only that value, preserving null and scalar returns:
+Call the API by its registered project name. `runApi` returns the API's value directly, including objects, arrays, scalar values and null:
 
 ```tsx
 import { useState } from "react";
@@ -294,17 +294,12 @@ Use these client methods when building your own conversation UI or stream handli
 
 `AgentRun` supports `for await` iteration for custom consumers. Direct iteration yields events but does not execute frontend handlers or manage React state. An initialized run also exposes `respondToToolCall(callId, result)`. Most applications should use `agentManager.consume()` to handle this lifecycle.
 
-## Unreleased (planned v0.1.3)
-
-- Read the public API `response` field while preserving objects, arrays, scalar values and null.
-- Reject unsuccessful or incomplete public execution responses and retain support for older server envelopes.
-
-Upgrade existing apps to this release and rebuild their bundles before rolling out
-the server's public API response contract. Updating the starter affects newly
-created apps only. Version 0.1.2 does not unwrap the new public response shape.
-
 <!-- sdk-release-history -->
 ## Changelog
+
+### v0.1.3
+
+- Read public API response values, preserve null and scalar returns, reject unsuccessful responses, and retain support for legacy server envelopes.
 
 ### v0.1.2
 
