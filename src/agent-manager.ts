@@ -141,7 +141,7 @@ export function useAgentManager(client: VortexifyClient | null): AgentManager {
     scope.current.conversationId = null; setNextMessageOffset(null);
     await operation(async (signal, live) => {
       const [conversation, history] = await Promise.all([
-        client.getAgentConversation(name, id, { signal }), client.listAgentMessages(name, id, {}, { signal }),
+        client.getAgentConversation(name, id, { signal }), client.listAgentMessages(name, id, { latest: true }, { signal }),
       ]);
       if (live()) { scope.current.conversationId = id; setActiveConversation(conversation); setMessages(history.items); setNextMessageOffset(history.nextOffset); }
     });
@@ -150,8 +150,8 @@ export function useAgentManager(client: VortexifyClient | null): AgentManager {
     const { agentName: name, conversationId: id } = scope.current;
     if (!client || !name || !id || nextMessageOffset === null) return;
     await operation(async (signal, live) => {
-      const result = await client.listAgentMessages(name, id, { offset: nextMessageOffset }, { signal });
-      if (live()) { setMessages(previous => [...previous, ...result.items]); setNextMessageOffset(result.nextOffset); }
+      const result = await client.listAgentMessages(name, id, { latest: true, offset: nextMessageOffset }, { signal });
+      if (live()) { setMessages(previous => [...result.items.filter(item => !previous.some(old => old.id === item.id)), ...previous]); setNextMessageOffset(result.nextOffset); }
     });
   }, [client, nextMessageOffset, operation]);
   const newConversation = useCallback((options: ConversationOptions = {}) => {
@@ -217,7 +217,7 @@ export function useAgentManager(client: VortexifyClient | null): AgentManager {
           publish();
           const { agentName: name, conversationId: id } = scope.current;
           if (client && name && id) {
-            const history = await client.listAgentMessages(name, id, {}, { signal: request.cancelSignal });
+            const history = await client.listAgentMessages(name, id, { latest: true }, { signal: request.cancelSignal });
             if (live()) {
               setMessages(history.items); setNextMessageOffset(history.nextOffset);
               setActiveConversation(previous => previous ? { ...previous, isActive: false } : previous);

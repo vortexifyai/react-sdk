@@ -24,6 +24,7 @@ export interface AgentMessage {
 }
 export interface ConversationOptions { name?: string; visibility?: ConversationVisibility }
 export interface PageOptions { limit?: number; offset?: number }
+export interface MessagePageOptions extends PageOptions { latest?: boolean }
 export interface Page<T> { items: T[]; nextOffset: number | null }
 export function conversationFromServer(row: Record<string, unknown>): AgentConversation {
   return {

@@ -1,0 +1,107 @@
+name: Release React SDK
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Validate release version and changelog
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const tag = process.env.RELEASE_VERSION;
+          if (!/^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(tag)) {
+            throw new Error('Release tags must use vMAJOR.MINOR.PATCH');
+          }
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+          if (pkg.name !== '@vortexify/react' || pkg.version !== tag.slice(1) ||
+              lock.version !== pkg.version || lock.packages[''].version !== pkg.version) {
+            throw new Error('Tag must match @vortexify/react in package.json and package-lock.json');
+          }
+          if (!readFileSync('README.md', 'utf8').includes(`### ${tag}\n`)) {
+            throw new Error('Add this version to the README changelog before tagging');
+          }
+          NODE
+      - name: Install dependencies
+        run: npm ci
+      - name: Test SDK
+        run: npm test
+      - name: Build SDK
+        run: npm run build
+      - name: Pack and verify package
+        run: |
+          mkdir -p "$RUNNER_TEMP/npm-release"
+          npm pack --json --pack-destination "$RUNNER_TEMP/npm-release" > "$RUNNER_TEMP/npm-pack.json"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const packages = JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/npm-pack.json`, 'utf8'));
+          if (packages.length !== 1 || packages[0].name !== '@vortexify/react' ||
+              packages[0].version !== process.env.RELEASE_VERSION.slice(1)) {
+            throw new Error('Packed package identity does not match the release');
+          }
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: react-package
+          path: ${{ runner.temp }}/npm-release/*.tgz
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: react-package
+          path: dist
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Publish to npm using trusted publishing
+        run: npm publish dist/*.tgz --access public --registry https://registry.npmjs.org
+
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: react-package
+          path: dist
+      - name: Create GitHub Release
+        run: gh release create "$RELEASE_VERSION" dist/*.tgz --verify-tag --generate-notes

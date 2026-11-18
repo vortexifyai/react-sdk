@@ -1,6 +1,6 @@
 import type { AgentView } from "./agent-view.js";
 import { conversationFromServer, messageFromServer } from "./conversations.js";
-import type { AgentConversation, AgentMessage, ConversationOptions, Page, PageOptions } from "./conversations.js";
+import type { AgentConversation, AgentMessage, ConversationOptions, Page, PageOptions, MessagePageOptions } from "./conversations.js";
 import { VortexifyError } from "./errors.js";
 export { VortexifyError } from "./errors.js";
 import { AgentRun, validateToolResult } from "./agent.js";
@@ -200,7 +200,7 @@ export class VortexifyClient {
     return conversationFromServer(await this.request(this.endpoints.getAgentConversation, name, { agent_name: this.requireResourceName(name), conversation_id: conversationId }, options));
   }
 
-  async listAgentMessages(name: string, conversationId: string, page: PageOptions = {}, options?: RequestOptions): Promise<Page<AgentMessage>> {
+  async listAgentMessages(name: string, conversationId: string, page: MessagePageOptions = {}, options?: RequestOptions): Promise<Page<AgentMessage>> {
     const result = await this.request<{ items: Record<string, unknown>[]; next_offset: number | null }>(this.endpoints.listAgentMessages, name, { agent_name: this.requireResourceName(name), conversation_id: conversationId, limit: 50, offset: 0, ...page }, options);
     return { items: result.items.map(messageFromServer), nextOffset: result.next_offset };
   }

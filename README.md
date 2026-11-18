@@ -163,11 +163,13 @@ New conversations default to `public`, meaning shared with authorized project me
 | `isRunning`, `isLoading`, `error` | Response state, conversation loading state, and latest error |
 | `loadConversations(name, page?)` | Load conversations; a nonzero offset appends a page |
 | `selectConversation(id)` | Select a conversation and load its history |
-| `loadMoreMessages()` | Load another page of message history |
+| `loadMoreMessages()` | Load older messages and prepend them to history |
 | `nextConversationOffset`, `nextMessageOffset` | Next page offsets, or `null` |
 | `cancel()` | Disconnect the current response and stop further local action dispatch |
 
 Conversation pages default to 50 items, with a maximum of 100. To load the next page of conversations, pass `{ offset: agentManager.nextConversationOffset }` when the offset is not `null`.
+
+Selecting a conversation loads its most recent 50 messages in chronological order. `loadMoreMessages()` prepends older messages. Tool calls and results count toward the page size.
 
 The manager refreshes persisted messages after a completed response. Avoid rendering the completed response twice by showing either its persisted message or its current streaming text. Switching conversations or unmounting the manager disconnects the current stream. A disconnected agent run may continue on Vortexify; cancellation does not undo actions already started.
 
@@ -287,15 +289,18 @@ Use these client methods when building your own conversation UI or stream handli
 | --- | --- |
 | `listAgentConversations(name, page?, options?)` | Read accessible conversation pages |
 | `getAgentConversation(name, id, options?)` | Read conversation metadata |
-| `listAgentMessages(name, id, page?, options?)` | Read persisted history pages |
+| `listAgentMessages(name, id, page?, options?)` | Read persisted history pages; use `{ latest: true }` to page from newest to oldest, with each page displayed chronologically |
 | `createAgentConversation(name, values?, options?)` | Create an empty conversation immediately |
 | `updateAgentConversation(name, id, values, options?)` | Rename or change visibility |
 | `respondToToolCall(name, conversationId, runId, callId, result, options?)` | Submit a frontend tool result manually |
 
 `AgentRun` supports `for await` iteration for custom consumers. Direct iteration yields events but does not execute frontend handlers or manage React state. An initialized run also exposes `respondToToolCall(callId, result)`. Most applications should use `agentManager.consume()` to handle this lifecycle.
 
-<!-- sdk-release-history -->
 ## Changelog
+
+### v0.1.4
+
+- Load recent messages when opening a conversation or refreshing a completed response; load older history on demand.
 
 ### v0.1.3
 
@@ -312,4 +317,3 @@ Use these client methods when building your own conversation UI or stream handli
 ### v0.1.0
 
 - Initial release.
-<!-- /sdk-release-history -->

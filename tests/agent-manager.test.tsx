@@ -41,7 +41,7 @@ it("lists, selects and loads persisted history without executing actions", async
   expect(value.agentManager.activeConversation?.id).toBe("conversation-1");
   expect(value.agentManager.messages).toMatchObject([{ id: "message-1", role: "user" }]);
   await act(async () => value.agentManager.loadMoreMessages());
-  expect(value.agentManager.messages.map(message => message.id)).toEqual(["message-1", "message-2"]);
+  expect(value.agentManager.messages.map(message => message.id)).toEqual(["message-2", "message-1"]);
   expect(value.agentManager.nextMessageOffset).toBeNull();
   expect(operation.mock.calls.some(([url]) => String(url).endsWith("run_agent"))).toBe(false);
 });
@@ -110,4 +110,27 @@ it("clears conversation data when the provider switches client/project", async (
   expect(value.agentManager.messages).toEqual([]);
   expect(value.agentManager.conversations).toEqual([]);
   expect(value.agentManager.agentName).toBeNull();
+});
+
+
+it("loads the latest window, prepends older messages, and refreshes the final reply", async () => {
+  await mount();
+  const messages = Array.from({ length: 120 }, (_, i) => ({ id: String(i), role: i === 119 ? "assistant" : "tool", content: { text: String(i) } }));
+  const previous = operation.getMockImplementation()!;
+  operation.mockImplementation(async (url, init) => {
+    if (!String(url).endsWith("list_messages")) return previous(url, init);
+    const body = JSON.parse(init.body);
+    expect(body.latest).toBe(true);
+    const end = messages.length - body.offset;
+    const start = Math.max(0, end - body.limit);
+    return Response.json({ items: messages.slice(start, end), next_offset: start > 0 ? body.offset + body.limit : null });
+  });
+  await act(async () => value.agentManager.loadConversations("support"));
+  await act(async () => value.agentManager.selectConversation("conversation-1"));
+  expect(value.agentManager.messages.map(row => row.id)).toEqual(messages.slice(70).map(row => row.id));
+  await act(async () => value.agentManager.loadMoreMessages());
+  expect(value.agentManager.messages.map(row => row.id)).toEqual(messages.slice(20).map(row => row.id));
+  messages.push({ id: "120", role: "assistant", content: { text: "Final answer" } });
+  await act(async () => value.agentManager.consume(value.client.runAgent("support", { message: "Continue" })));
+  expect(value.agentManager.messages.at(-1)?.id).toBe("120");
 });

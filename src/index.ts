@@ -7,6 +7,6 @@ export type { VortexifyConfig, VortexifyEnv, Endpoints } from "./config.js";
 export { AgentRun, AGENT_LIMITS } from "./agent.js";
 export type { AgentToolResult, JsonValue, JsonObject, ActionSchema, FrontendAction, FrontendActions, RunAgentOptions, AgentEvent } from "./agent.js";
 export type { AgentManager, AgentTool } from "./agent-manager.js";
-export type { AgentConversation, AgentMessage, ConversationVisibility, ConversationOptions, PageOptions, Page } from "./conversations.js";
+export type { AgentConversation, AgentMessage, ConversationVisibility, ConversationOptions, PageOptions, MessagePageOptions, Page } from "./conversations.js";
 export { useAgentView } from "./agent-view.js";
 export type { AgentView } from "./agent-view.js";
