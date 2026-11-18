@@ -86,7 +86,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Publish to npm using trusted publishing
-        run: npm publish dist/*.tgz --access public --registry https://registry.npmjs.org
+        run: npm publish ./dist/*.tgz --access public --registry https://registry.npmjs.org
 
   release:
     needs: publish
