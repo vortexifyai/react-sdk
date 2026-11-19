@@ -111,7 +111,7 @@ const orders = await client.runApi("customer_orders", { customer_id: "123" });
 | `getTransformJob(name, jobId, options?)` | Read a job's current status |
 | `pollTransform(name, jobId, options?)` | Wait for completed results, with optional progress updates |
 
-Request options accept `signal` and `timeoutMs`. Individual requests default to 60 seconds; transform waiting defaults to five minutes. Pass an `AbortSignal` to cancel waiting. Cancellation does not stop a job already running on Vortexify.
+Request options accept `signal` and `timeoutMs`. API calls default to a 16-minute request timeout; other requests default to 60 seconds. Explicit request or client `timeoutMs` settings take precedence. Transform waiting defaults to five minutes. Pass an `AbortSignal` to cancel waiting. Cancellation does not stop a job already running on Vortexify.
 
 ## Talk to an agent
 
@@ -297,6 +297,10 @@ Use these client methods when building your own conversation UI or stream handli
 `AgentRun` supports `for await` iteration for custom consumers. Direct iteration yields events but does not execute frontend handlers or manage React state. An initialized run also exposes `respondToToolCall(callId, result)`. Most applications should use `agentManager.consume()` to handle this lifecycle.
 
 ## Changelog
+
+### v0.1.5
+
+- Allow API calls to wait up to 16 minutes by default; explicit request or client timeouts take precedence.
 
 ### v0.1.4
 

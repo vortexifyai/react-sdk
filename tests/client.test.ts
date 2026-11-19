@@ -196,3 +196,19 @@ it.each([
   }))));
   await expect(new VortexifyClient(config, () => auth).runApi("orders")).rejects.toThrow();
 });
+
+
+it.each([
+  [undefined, undefined, 960_000],
+  [45_000, undefined, 45_000],
+  [45_000, 90_000, 90_000],
+])("API request timeout respects configuration and per-call overrides", async (configured, requested, expected) => {
+  const timeout = vi.spyOn(AbortSignal, "timeout");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 })));
+  try {
+    await new VortexifyClient({ ...config, timeoutMs: configured }, () => auth).runApi("orders", {}, { timeoutMs: requested });
+    expect(timeout).toHaveBeenCalledWith(expected);
+  } finally {
+    timeout.mockRestore();
+  }
+});
